@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Learning Based Control of a Multifunctional Gripper</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,300;0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy:#1a2b4a; --navy-light:#243657; --gold:#c9a84c; --gold-light:#e8c96d;
+      --cream:#f7f4ef; --text:#1e1e2e; --muted:#6b7280; --border:#e2ddd6; --white:#ffffff;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family:'DM Sans',sans-serif; background:var(--cream); color:var(--text); line-height:1.7; }
+
+    /* NAV */
+    nav {
+      position:sticky; top:0; z-index:100;
+      background:rgba(26,43,74,0.97); backdrop-filter:blur(12px);
+      padding:0 2rem; display:flex; align-items:center; justify-content:space-between;
+      height:56px; border-bottom:1px solid rgba(201,168,76,0.25);
+    }
+    .nav-brand { font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--gold); letter-spacing:0.08em; }
+    .nav-links { display:flex; gap:2rem; }
+    .nav-links a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.85rem; font-weight:500; transition:color .2s; }
+    .nav-links a:hover { color:var(--gold-light); }
+
+    /* HERO */
+    .hero {
+      background:linear-gradient(160deg,var(--navy) 0%,#0f1e38 60%,#162040 100%);
+      padding:5rem 2rem 4rem; text-align:center; position:relative; overflow:hidden;
+    }
+    .hero::before {
+      content:''; position:absolute; inset:0;
+      background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(201,168,76,0.12) 0%,transparent 70%);
+      pointer-events:none;
+    }
+    .hero-grid {
+      position:absolute; inset:0;
+      background-image:linear-gradient(rgba(201,168,76,0.04) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(201,168,76,0.04) 1px,transparent 1px);
+      background-size:60px 60px; pointer-events:none;
+    }
+    .hero-inner { position:relative; max-width:900px; margin:0 auto; }
+    .venue-tag {
+      display:inline-block; font-family:'JetBrains Mono',monospace;
+      font-size:0.72rem; letter-spacing:0.1em; text-transform:uppercase;
+      color:var(--gold); border:1px solid var(--gold);
+      padding:0.3rem 0.9rem; border-radius:2px; margin-bottom:1.8rem;
+    }
+    .hero h1 {
+      font-family:'Source Serif 4',serif; font-size:clamp(1.8rem,4vw,2.9rem);
+      font-weight:300; color:var(--white); line-height:1.3; margin-bottom:2rem;
+    }
+    .hero h1 em { font-style:italic; color:var(--gold-light); }
+    .authors { font-size:1rem; color:rgba(255,255,255,0.85); margin-bottom:0.6rem; }
+    .authors a { color:var(--gold-light); text-decoration:none; border-bottom:1px dotted var(--gold); }
+    .affiliation {
+      font-size:0.85rem; color:rgba(255,255,255,0.5); margin-bottom:2.5rem;
+      font-family:'JetBrains Mono',monospace; letter-spacing:0.03em;
+    }
+    .btn-row { display:flex; gap:0.9rem; justify-content:center; flex-wrap:wrap; }
+    .btn {
+      display:inline-flex; align-items:center; gap:0.5rem;
+      padding:0.6rem 1.4rem; border-radius:3px;
+      font-size:0.88rem; font-weight:500; text-decoration:none;
+      transition:all .2s; cursor:pointer; border:none;
+    }
+    .btn-primary { background:var(--gold); color:var(--navy); }
+    .btn-primary:hover { background:var(--gold-light); transform:translateY(-1px); }
+    .btn-outline { background:transparent; color:var(--white); border:1px solid rgba(255,255,255,0.35); }
+    .btn-outline:hover { border-color:var(--gold); color:var(--gold-light); transform:translateY(-1px); }
+
+    /* TEASER */
+    .teaser { background:var(--navy-light); padding:2.5rem 2rem; }
+    .teaser-inner { max-width:960px; margin:0 auto; }
+    .teaser-label {
+      text-align:center; font-family:'JetBrains Mono',monospace;
+      font-size:0.7rem; letter-spacing:0.12em; text-transform:uppercase;
+      color:var(--gold); margin-bottom:1rem;
+    }
+    .teaser-caption { text-align:center; color:rgba(255,255,255,0.65); font-size:0.88rem; margin-top:1rem; font-style:italic; }
+
+    /* PLACEHOLDER */
+    .ph-block {
+      width:100%; background:#0d1928;
+      border:1px dashed rgba(201,168,76,0.35); border-radius:4px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:0.65rem; position:relative; overflow:hidden; padding:2.5rem 1rem;
+    }
+    .ph-block::before {
+      content:''; position:absolute; inset:0;
+      background:repeating-linear-gradient(45deg,transparent,transparent 20px,rgba(201,168,76,0.02) 20px,rgba(201,168,76,0.02) 40px);
+    }
+    .ph-block.r169 { aspect-ratio:16/9; padding:0; }
+    .ph-block.r43  { aspect-ratio:4/3;  padding:0; }
+    .ph-icon-c {
+      width:56px; height:56px; border-radius:50%;
+      background:rgba(201,168,76,0.12); border:2px solid rgba(201,168,76,0.4);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.4rem; color:var(--gold); flex-shrink:0; position:relative;
+    }
+    .ph-type { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:rgba(255,255,255,0.45); letter-spacing:0.1em; text-transform:uppercase; }
+    .ph-fname { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:rgba(201,168,76,0.6); }
+    .ph-desc  { font-size:0.72rem; color:rgba(255,255,255,0.3); text-align:center; }
+
+    /* SECTIONS */
+    section { padding:5rem 2rem; }
+    section:nth-child(even) { background:var(--white); }
+    .si { max-width:960px; margin:0 auto; }
+    .stag {
+      font-family:'JetBrains Mono',monospace; font-size:0.7rem; letter-spacing:0.12em;
+      text-transform:uppercase; color:var(--gold); margin-bottom:0.6rem; display:block;
+    }
+    h2 {
+      font-family:'Source Serif 4',serif; font-size:clamp(1.6rem,3vw,2.2rem);
+      font-weight:400; color:var(--navy); margin-bottom:1.8rem; line-height:1.25;
+    }
+    p { color:#374151; margin-bottom:1.1rem; font-size:0.97rem; }
+
+    .abstract-box {
+      border-left:3px solid var(--gold); padding:1.5rem 2rem;
+      background:rgba(201,168,76,0.04); border-radius:0 4px 4px 0;
+    }
+    .abstract-box p { font-size:1rem; color:#1f2937; }
+
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:2.5rem; align-items:start; }
+    @media(max-width:700px) { .two-col,.three-col { grid-template-columns:1fr; } }
+    .three-col { display:grid; grid-template-columns:repeat(3,1fr); gap:1.5rem; }
+
+    .info-card { background:var(--cream); border:1px solid var(--border); border-radius:6px; padding:1.4rem; }
+    .info-card .ci {
+      width:40px; height:40px; border-radius:4px;
+      background:rgba(26,43,74,0.08); display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; color:var(--navy); margin-bottom:0.8rem;
+    }
+    .info-card h3 { font-size:0.9rem; font-weight:600; color:var(--navy); margin-bottom:0.4rem; }
+    .info-card p { font-size:0.85rem; color:var(--muted); margin:0; }
+
+    .fig-wrap { background:#f3f0eb; border-radius:6px; overflow:hidden; border:1px solid var(--border); }
+    .fig-wrap img { width:100%; display:block; }
+    .fc { padding:0.6rem 1rem; font-size:0.78rem; color:var(--muted); border-top:1px solid var(--border); font-style:italic; }
+
+    .metric-row { display:flex; gap:1rem; flex-wrap:wrap; margin:1.5rem 0; }
+    .metric { flex:1; min-width:140px; background:var(--navy); border-radius:6px; padding:1.2rem 1.5rem; text-align:center; }
+    .metric .val { font-family:'JetBrains Mono',monospace; font-size:1.6rem; color:var(--gold-light); font-weight:500; }
+    .metric .lbl { font-size:0.75rem; color:rgba(255,255,255,0.55); margin-top:0.2rem; }
+
+    .demo-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+    @media(max-width:700px) { .demo-grid { grid-template-columns:1fr; } }
+
+    .ps { display:flex; gap:1.2rem; align-items:flex-start; padding:1.2rem 0; border-bottom:1px solid var(--border); }
+    .ps:last-child { border-bottom:none; }
+    .psn {
+      flex-shrink:0; width:36px; height:36px; border-radius:50%;
+      background:var(--navy); color:var(--gold);
+      display:flex; align-items:center; justify-content:center;
+      font-family:'JetBrains Mono',monospace; font-size:0.85rem; font-weight:500;
+    }
+    .psb h4 { font-size:0.95rem; font-weight:600; color:var(--navy); margin-bottom:0.25rem; }
+    .psb p  { font-size:0.88rem; color:var(--muted); margin:0; }
+
+    .bibtex-box {
+      background:#0f172a; border-radius:6px; padding:1.5rem 1.8rem;
+      font-family:'JetBrains Mono',monospace; font-size:0.78rem;
+      color:#a5b4cf; white-space:pre; overflow-x:auto; line-height:1.7;
+    }
+    .bibtex-box .kw { color:#7dd3fc; }
+    .bibtex-box .str { color:#86efac; }
+
+    footer { background:var(--navy); color:rgba(255,255,255,0.5); text-align:center; padding:2rem; font-size:0.8rem; line-height:1.8; }
+    footer a { color:var(--gold); text-decoration:none; }
+    .divider { height:1px; background:var(--border); margin:2.5rem 0; }
+    .tag {
+      display:inline-block; font-size:0.72rem; font-weight:500;
+      background:rgba(26,43,74,0.08); color:var(--navy);
+      padding:0.2rem 0.7rem; border-radius:12px; margin:0.2rem;
+      border:1px solid rgba(26,43,74,0.15);
+    }
+    .fade-up { opacity:0; transform:translateY(24px); transition:opacity .6s ease,transform .6s ease; }
+    .fade-up.visible { opacity:1; transform:translateY(0); }
+    .zoomable { cursor:zoom-in; transition:transform .2s,box-shadow .2s; }
+    .zoomable:hover { transform:scale(1.01); box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="nav-brand">IIITDM Kancheepuram</span>
+  <div class="nav-links">
+    <a href="#abstract">Abstract</a>
+    <a href="#motivation">Why Striking</a>
+    <a href="#design">Design</a>
+    <a href="#method">Method</a>
+    <a href="#results">Results</a>
+    <a href="#bibtex">BibTeX</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="venue-tag">B.Tech Project Report &middot; March 2026</div>
+    <h1>
+      Learning Based Control of a<br/>
+      <em>Multifunctional Gripper</em><br/>
+      for Striking Manipulation under Unknown<br/>
+      Kinematic and Dynamic Parameters
+    </h1>
+    <div class="authors">
+      <strong style="color:#fff">Girimanikandan B</strong>
+      &ensp;&middot;&ensp;
+      Advised by <a href="#">Dr. Nagamanikandan Govindhan</a>
+    </div>
+    <div class="affiliation">Indian Institute of Information Technology, Design and Manufacturing, Kancheepuram</div>
+    <div class="btn-row">
+      <a class="btn btn-primary" href="#results"><i class="fas fa-play-circle"></i> View Results</a>
+      <a class="btn btn-outline" href="#abstract"><i class="fas fa-file-alt"></i> Abstract</a>
+      <a class="btn btn-outline" href="#bibtex"><i class="fas fa-code"></i> BibTeX</a>
+    </div>
+  </div>
+</header>
+
+<!-- TEASER -->
+<div class="teaser">
+  <div class="teaser-inner">
+    <div class="teaser-label">Teaser &middot; System Demo</div>
+    <div class="ph-block r169">
+      <div class="ph-icon-c"><i class="fas fa-film"></i></div>
+      <div class="ph-type">Teaser Video</div>
+      <div class="ph-fname">teaser_demo.mp4</div>
+      <div class="ph-desc">Full system demo: pick &amp; place + targeted striking on xArm-7</div>
+    </div>
+    <div class="teaser-caption">
+      The proposed multifunctional end-effector performing both prehensile (pick &amp; place) and
+      non-prehensile (striking) manipulation tasks on the xArm-7 robotic platform.
+    </div>
+  </div>
+</div>
+
+<!-- ABSTRACT -->
+<section id="abstract">
+  <div class="si fade-up">
+    <span class="stag">01 &middot; Overview</span>
+    <h2>Abstract</h2>
+    <div class="abstract-box">
+      <p>
+        While traditional robotic manipulation relies on secure grasping, this approach often struggles with objects that are awkwardly shaped, sized, or positioned. Non-prehensile actions like striking offer a faster, more flexible alternative, but they are notoriously difficult to control due to unpredictable environmental factors like surface friction. To bridge this gap, this project introduces a novel, multi-functional robotic end-effector that seamlessly unifies prehensile (pick-and-place) and non-prehensile (targeted striking) capabilities. At the core of this hardware is a Latch Mediated Spring Actuation (LaMSA) mechanism, which allows the system to efficiently store and release elastic energy for powerful, highly controlled strikes.
+      </p>
+      <p>
+        Because striking outcomes depend heavily on the physical properties of the object and environment, this project also introduces a hybrid learning and model-based control framework to guide the hardware. Inspired by Rapid Motor Adaptation (RMA), the system uses brief, exploratory interactions to infer the unknown physical characteristics of a target object on the fly. This creates an adaptive, end-to-end framework that minimizes the need for precise prior modeling, allowing the robot to robustly and accurately manipulate objects even when their dynamics are completely unknown.
+      </p>
+    </div>
+    <div style="margin-top:1.5rem">
+      <span class="tag">Robotic Manipulation</span>
+      <span class="tag">Non-Prehensile</span>
+      <span class="tag">LaMSA</span>
+      <span class="tag">System Identification</span>
+      <span class="tag">Random Forest</span>
+      <span class="tag">Learning-Based Control</span>
+      <span class="tag">xArm-7</span>
+    </div>
+  </div>
+</section>
+
+<!-- WHY STRIKING -->
+<section id="motivation" style="background:#fff">
+  <div class="si fade-up">
+    <span class="stag">02 &middot; Motivation</span>
+    <h2>Why Striking Manipulation?</h2>
+
+    <p>Standard robotic manipulation is inherently limited: objects must be within reach, graspable, and their physical properties must be known. Striking — a non-prehensile primitive — bypasses all three constraints by applying impulsive forces to reposition objects beyond the robot's workspace.</p>
+
+    <!-- Unreachable target scenario -->
+    <div class="fig-wrap" style="margin-bottom:2.5rem">
+      <!-- <div class="ph-block r169">
+        <div class="ph-icon-c"><i class="fas fa-map-marked-alt"></i></div>
+        <div class="ph-type">Image Placeholder</div>
+        <div class="ph-fname">unreachable_target_npm.png</div>
+        <div class="ph-desc">Mobile manipulator using motion primitives (pushing, grasping, striking) to move a non-graspable object to a goal beyond its workspace — Fig 1.1 from report</div>
+      </div> -->
+      <img src="conceptual_image.png" alt="Mobile manipulator using motion primitives to move a non-graspable object" style="width: 100%; height: auto; display: block;">
+      <div class="fc">Fig 1. A mobile manipulator transporting a non-graspable object to an unreachable goal location using a combination of motion primitives. At step (5), the robot <em>strikes</em> the object across the remaining distance.Figure adapted from [1]</div>
+    </div>
+    <div class="text-content" style="margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.6;">
+      <p>
+        If striking is the solution for out-of-reach objects, why can't the manipulator just "punch" the object itself? Why build a dedicated striking gripper?
+      </p>
+    </div>
+    <!-- Whole-body striking + limitations -->
+    <div class="two-col">
+      <div class="fig-wrap">
+        <div class="ph-block r43">
+          <!-- <div class="ph-icon-c"><i class="fas fa-robot"></i></div>
+          <div class="ph-type">GIF Placeholder</div>
+          <div class="ph-fname">whole_body_striking.gif</div> -->
+          <img src="Demo_video_AIR.gif" alt="Whole-body striking demonstration" style="width: 100%; height: auto; display: block;">
+          <div class="ph-desc">Targeted striking via whole-body manipulation of a 7-DoF arm</div>
+        </div>
+        <div class="fc">Fig 2. Targeted striking with Whole Body Manipulation. The arm uses its full kinematic chain as a striking tool — energy-inefficient and limited by joint torque and velocity caps. Adapted from [2]</div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:1.2rem">
+        <h3 style="font-family:'Source Serif 4',serif;font-size:1.1rem;color:var(--navy)">Limitations of Whole-Body Striking</h3>
+        <div class="three-col" style="gap:1rem">
+          <div class="info-card">
+            <div class="ci"><i class="fas fa-battery-quarter"></i></div>
+            <h3>Energy Inefficient</h3>
+            <p>Joints must overcome their own inertia to build impact velocity</p>
+          </div>
+          <div class="info-card">
+            <div class="ci"><i class="fas fa-ruler-combined"></i></div>
+            <h3>Workspace Limited</h3>
+            <p>Objects outside the reachable envelope cannot be manipulated</p>
+          </div>
+          <div class="info-card">
+            <div class="ci"><i class="fas fa-hand-paper"></i></div>
+            <h3>Joint Constrained</h3>
+            <p>Maximum achievable impact velocity is capped by joint speed limits</p>
+          </div>
+        </div>
+        <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.3);border-radius:4px;padding:1rem 1.2rem">
+          <p style="margin:0;font-size:0.9rem;color:var(--navy);font-weight:500">
+            <i class="fas fa-lightbulb" style="color:var(--gold);margin-right:0.5rem"></i>
+            A dedicated <strong>LaMSA mechanism in the end-effector</strong> decouples energy generation from joint kinematics — delivering ~44 W of peak striking power from a 7–8 W motor by slowly storing then rapidly releasing elastic energy.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MECHANICAL DESIGN -->
+<section id="design">
+  <div class="si fade-up">
+    <span class="stag">03 &middot; Hardware</span>
+    <h2>Mechanical Design</h2>
+    <p>
+      The end-effector integrates two manipulation modes in one compact mechanism.
+      Pick-and-place uses a passive finger and one Dynamixel servo — mirroring conventional grippers.
+      Striking employs a motor-driven <strong>snail cam</strong> to gradually compress a spring; a linear actuator
+      unlatches at a precisely timed cam angle θ, converting stored elastic energy into a high-speed impulsive strike.
+    </p>
+
+    <!-- Working principle diagram (real image) -->
+    <div class="fig-wrap" style="margin-bottom:2.5rem">
+      <img src="working_principle.png" alt="LaMSA Working Principle" class="zoomable"/>
+      <div class="fc">Fig 3. Working Principle of the LaMSA Striker — the snail cam loads the compression spring (k = 2.2 N/mm) from ℓ₁ to ℓ₂ storing energy E = ½k(ℓ₂−ℓ₁)². On unlatch at cam angle θ, the striker is released over stroke ℓₛ producing impact velocity vₛ = ℓₛ√(k/m).</div>
+    </div>
+
+    <!-- LaMSA physics callout -->
+    <div style="background:var(--navy);border-radius:6px;padding:1.6rem 2rem;margin-bottom:2.5rem">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;color:var(--gold);margin-bottom:0.9rem;text-transform:uppercase">Key Equations &middot; LaMSA</div>
+      <div class="two-col" style="gap:2rem">
+        <div>
+          <p style="color:rgba(255,255,255,0.8);font-size:0.9rem;margin-bottom:0.5rem">
+            The actuator (7–8 W) slowly charges the spring. On unlatch, the stored energy is released in ~10 ms — producing ~44 W of instantaneous striking power. This power amplification is the core advantage of LaMSA over direct actuation.
+          </p>
+          <p style="color:rgba(255,255,255,0.5);font-size:0.82rem;margin:0">
+            k = 2.2 N/mm &nbsp;&middot;&nbsp; max compression = 12 mm &nbsp;&middot;&nbsp; stroke = 12 mm &nbsp;&middot;&nbsp; total mass ≈ 500 g
+          </p>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.77rem;color:rgba(255,255,255,0.7);line-height:2;background:rgba(201,168,76,0.09);border:1px solid rgba(201,168,76,0.22);border-radius:4px;padding:0.9rem 1.1rem">
+          <span style="color:var(--gold)">E</span>   = ½k(ℓ₂ − ℓ₁)² = 0.44 J<br/>
+          <span style="color:var(--gold)">vₛ</span>  = ℓₛ√(k/m)<br/>
+          <span style="color:var(--gold)">J</span>   = m·vₛ ≈ 0.0204 kg·m/s<br/>
+          <span style="color:var(--gold)">P</span>   = E/t ≈ 44 W  (t ≈ 10 ms)
+        </div>
+      </div>
+    </div>
+    <div class="capabilities-showcase" style="margin: 4rem 0;">
+      
+      <h3 style="text-align: center; margin-bottom: 2rem; color: #333;">Multi-Functional End-Effector Capabilities</h3>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 20px; justify-content: center;">
+
+        <div style="flex: 1 1 30%; min-width: 260px; text-align: center; background: #f9f9f9; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <img src="pick-and-place.gif" alt="7-DOF robot performing pick and place" style="width: 100%; height: auto; display: block; border-bottom: 1px solid #eee;">
+          <div style="padding: 1rem; font-weight: 600; color: #444;">
+            Prehensile: Pick and Place
+          </div>
+        </div>
+
+        <div style="flex: 1 1 30%; min-width: 260px; text-align: center; background: #f9f9f9; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <img src="Striking.gif" alt="Robot performing high-impact strike using LaMSA" style="width: 100%; height: auto; display: block; border-bottom: 1px solid #eee;">
+          <div style="padding: 1rem; font-weight: 600; color: #444;">
+            Non-Prehensile: Targeted Striking
+          </div>
+        </div>
+
+        <div style="flex: 1 1 30%; min-width: 260px; text-align: center; background: #f9f9f9; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+          <img src="in-hand-manipulation_low_Res.gif" alt="Robot demonstrating fine in-hand manipulation" style="width: 100%; height: auto; display: block; border-bottom: 1px solid #eee;">
+          <div style="padding: 1rem; font-weight: 600; color: #444;">
+            Fine In-Hand Manipulation
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- Exploded view + component list
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1.2rem">Component Assembly</h3>
+    <div class="two-col" style="margin-bottom:2.5rem;align-items:start">
+      <div class="fig-wrap">
+        <img src="Exploded_View.drawio.png" alt="Exploded View of Finger Assembly" class="zoomable"/>
+        <div class="fc">Fig 4. Exploded view of the finger assembly — Linear Actuator Part (latch release), Motor + Cam subassembly (Dynamixel XM-540 + snail cam), and Striker Part (compression spring, coupler, 3 mm shaft, striker head, linear potentiometer).</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.7rem;padding-top:0.2rem">
+        <div style="font-family:'Source Serif 4',serif;font-size:1rem;color:var(--navy);font-weight:600;margin-bottom:0.3rem">Major Sub-Assemblies</div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.85rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:32px;height:32px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;color:var(--navy)"><i class="fas fa-circle-notch"></i></div>
+          <div><strong style="font-size:0.84rem;color:var(--navy)">Motor + Cam (Dynamixel XM-540)</strong><br/><span style="font-size:0.77rem;color:var(--muted)">Snail cam profile converts servo rotation into controlled spring compression</span></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.85rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:32px;height:32px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;color:var(--navy)"><i class="fas fa-bolt"></i></div>
+          <div><strong style="font-size:0.84rem;color:var(--navy)">Linear Actuator (Actuonix) — Latch</strong><br/><span style="font-size:0.77rem;color:var(--muted)">Disengages latch via GPIO PWM; triggers rapid spring release at desired θ</span></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.85rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:32px;height:32px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;color:var(--navy)"><i class="fas fa-compress-arrows-alt"></i></div>
+          <div><strong style="font-size:0.84rem;color:var(--navy)">Compression Spring + Striker Head</strong><br/><span style="font-size:0.77rem;color:var(--muted)">Stores elastic potential energy; delivers impulse to object upon release</span></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.85rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:32px;height:32px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;color:var(--navy)"><i class="fas fa-hand-rock"></i></div>
+          <div><strong style="font-size:0.84rem;color:var(--navy)">Passive Finger</strong><br/><span style="font-size:0.77rem;color:var(--muted)">Enables prehensile pick-and-place grasping alongside the striking assembly</span></div>
+        </div>
+        <div style="display:flex;gap:0.8rem;align-items:flex-start;padding:0.85rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:32px;height:32px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.85rem;color:var(--navy)"><i class="fas fa-ruler"></i></div>
+          <div><strong style="font-size:0.84rem;color:var(--navy)">Linear Potentiometer</strong><br/><span style="font-size:0.77rem;color:var(--muted)">Monitors striker position; analog feedback to Raspberry Pi 5 controller</span></div>
+        </div>
+      </div>
+    </div> -->
+    <!-- CAD & COMPONENT ASSEMBLY SECTION -->
+    <div style="margin-bottom:3rem">
+      <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:0.5rem">
+        3D Model Viewer
+      </h3>
+      <p style="font-size:0.88rem;color:var(--muted);margin-bottom:1rem">
+        Interactive CAD model of the complete finger assembly. Click and drag to rotate · Scroll to zoom.
+      </p>
+
+      <!-- GLTF 3D VIEWER — replace src with your .gltf / .glb file path -->
+      <div style="width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--border);background:#f0ede8;aspect-ratio:16/9;position:relative">
+        
+        <!-- Option A: model-viewer web component (recommended, no build step) -->
+        <!-- To enable: add this script to your <head>:
+            <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+        -->
+        <model-viewer
+          src="EE_Assy.gltf"
+          alt="3D model of the LaMSA finger assembly"
+          camera-controls
+          auto-rotate
+          auto-rotate-delay="1000"
+          rotation-per-second="20deg"
+          environment-image="studio_small_08_1k.hdr"
+          tone-mapping="commerce"
+          exposure="0.4"
+          shadow-intensity="0.3"
+          shadow-softness="0.5"
+          style="width:100%;height:100%;background:#ffffffcb;"
+        >
+        <!-- <script type="module">
+          const mv = document.querySelector('model-viewer');
+
+          mv.addEventListener('load', () => {
+            const materials = mv.model?.materials ?? [];
+
+            materials.forEach(mat => {
+              const pbr = mat.pbrMetallicRoughness;
+              if (!pbr) return;
+
+              // Fix the core problem: metallic=1 makes everything black
+              pbr.setMetallicFactor(0.05);
+              pbr.setRoughnessFactor(0.65);
+
+              // Optional: boost colors that are too dark
+              const [r, g, b, a] = pbr.baseColorFactor;
+              const brighten = 1.35;
+              pbr.setBaseColorFactor([
+                Math.min(r * brighten, 1),
+                Math.min(g * brighten, 1),
+                Math.min(b * brighten, 1),
+                a
+              ]);
+            });
+          });
+        </script> -->
+          <!-- Fallback shown while model loads or if model-viewer unavailable -->
+          <div slot="poster" style="
+            width:100%;height:100%;
+            display:flex;flex-direction:column;align-items:center;justify-content:center;
+            gap:0.8rem;background:#f0ede8;
+          ">
+            <div style="
+              width:64px;height:64px;border-radius:50%;
+              background:rgba(26,43,74,0.08);border:2px solid rgba(26,43,74,0.2);
+              display:flex;align-items:center;justify-content:center;
+              font-size:1.6rem;color:var(--navy);
+            "><i class="fas fa-cube"></i></div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase">Loading 3D Model…</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(26,43,74,0.4)">EE_Assy.gltf</div>
+          </div>
+        </model-viewer>
+
+        <!-- GLTF not ready yet? Swap above for this static placeholder: -->
+        <!--
+        <div style="
+          width:100%;height:100%;
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          gap:0.9rem;
+        ">
+          <div style="
+            width:72px;height:72px;border-radius:50%;
+            background:rgba(26,43,74,0.08);border:2px solid rgba(26,43,74,0.18);
+            display:flex;align-items:center;justify-content:center;
+            font-size:1.7rem;color:var(--navy);
+          "><i class="fas fa-cube"></i></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase">Interactive 3D Viewer</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(26,43,74,0.35)">striker_assembly.glb</div>
+          <div style="font-size:0.78rem;color:rgba(26,43,74,0.45)">Complete Finger Assembly · xArm-7 End-Effector</div>
+        </div>
+        -->
+
+      </div>
+      <div style="padding:0.55rem 0.1rem;font-size:0.78rem;color:var(--muted);font-style:italic">
+        Fig 4. Interactive 3D model of the complete finger assembly. Exported from Fusion 360 / SolidWorks as <code style="background:rgba(26,43,74,0.07);padding:0.1rem 0.35rem;border-radius:2px;font-size:0.73rem">striker_assembly.glb</code>.
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────── -->
+    <!-- EXPLODED VIEW + SUB-ASSEMBLY LIST              -->
+    <!-- Adjust --exploded-ratio to change split:       -->
+    <!--   2fr / 1fr  →  exploded takes 2× the space   -->
+    <!--   3fr / 1fr  →  exploded takes 3× the space   -->
+    <!--   1fr / 1fr  →  equal split                   -->
+    <!-- ─────────────────────────────────────────────── -->
+
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1.2rem">
+      Component Assembly
+    </h3>
+
+    <div style="
+      display:grid;
+      grid-template-columns: 2.2fr 1fr;   /* ← change this ratio freely */
+      gap:2rem;
+      align-items:start;
+      margin-bottom:2.5rem;
+    ">
+
+      <!-- LEFT: Exploded view image -->
+      <div class="fig-wrap">
+        <img
+          src="Exploded_View.drawio.png"
+          alt="Exploded View of Finger Assembly"
+          class="zoomable"
+        />
+        <div class="fc">
+          Fig 5. Exploded view of the finger assembly — Linear Actuator Part (latch release),
+          Motor + Cam subassembly (Dynamixel XM-540 + snail cam), and Striker Part
+          (compression spring, coupler, 3 mm shaft, striker head, linear potentiometer).
+        </div>
+      </div>
+
+      <!-- RIGHT: Sub-assembly list -->
+      <div style="display:flex;flex-direction:column;gap:0.65rem;padding-top:0.2rem">
+
+        <div style="font-family:'Source Serif 4',serif;font-size:0.95rem;color:var(--navy);font-weight:600;margin-bottom:0.2rem">
+          Major Sub-Assemblies
+        </div>
+
+        <!-- Motor + Cam -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.8rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:30px;height:30px;min-width:30px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.82rem;color:var(--navy)">
+            <i class="fas fa-circle-notch"></i>
+          </div>
+          <div>
+            <strong style="font-size:0.82rem;color:var(--navy)">Motor + Cam</strong><br/>
+            <span style="font-size:0.75rem;color:var(--muted)">Dynamixel XM-540 · snail cam compresses spring to desired θ</span>
+          </div>
+        </div>
+
+        <!-- Linear Actuator / Latch -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.8rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:30px;height:30px;min-width:30px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.82rem;color:var(--navy)">
+            <i class="fas fa-bolt"></i>
+          </div>
+          <div>
+            <strong style="font-size:0.82rem;color:var(--navy)">Latch (Actuonix LA)</strong><br/>
+            <span style="font-size:0.75rem;color:var(--muted)">GPIO PWM disengages latch; triggers rapid spring release</span>
+          </div>
+        </div>
+
+        <!-- Spring + Striker -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.8rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:30px;height:30px;min-width:30px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.82rem;color:var(--navy)">
+            <i class="fas fa-compress-arrows-alt"></i>
+          </div>
+          <div>
+            <strong style="font-size:0.82rem;color:var(--navy)">Spring + Striker Head</strong><br/>
+            <span style="font-size:0.75rem;color:var(--muted)">Stores elastic energy · delivers impulse on release</span>
+          </div>
+        </div>
+
+        <!-- Passive Finger -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.8rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:30px;height:30px;min-width:30px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.82rem;color:var(--navy)">
+            <i class="fas fa-hand-rock"></i>
+          </div>
+          <div>
+            <strong style="font-size:0.82rem;color:var(--navy)">Passive Finger</strong><br/>
+            <span style="font-size:0.75rem;color:var(--muted)">Pick-and-place grasping alongside striking mode</span>
+          </div>
+        </div>
+
+        <!-- Linear Potentiometer -->
+        <div style="display:flex;gap:0.75rem;align-items:flex-start;padding:0.8rem;background:var(--cream);border:1px solid var(--border);border-radius:4px">
+          <div style="width:30px;height:30px;min-width:30px;background:rgba(26,43,74,0.08);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.82rem;color:var(--navy)">
+            <i class="fas fa-ruler"></i>
+          </div>
+          <div>
+            <strong style="font-size:0.82rem;color:var(--navy)">Linear Potentiometer</strong><br/>
+            <span style="font-size:0.75rem;color:var(--muted)">Analog position feedback → Raspberry Pi 5</span>
+          </div>
+        </div>
+
+      </div><!-- end right col -->
+    </div><!-- end grid -->
+    <!-- Prototype photos -->
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1rem">Fabricated Prototype</h3>
+    <div class="demo-grid">
+      <div class="fig-wrap">
+        <div class="ph-block r43">
+          <img src="Physical_striker.jpg" alt="Fabricated prototype of the end-effector" class="zoomable"/>
+          <div class="ph-desc">Front / isometric view of the fabricated end-effector</div>
+        </div>
+        <div class="fc">Fig 5a. Fabricated prototype of the end-effector — front and isometric views.</div>
+      </div>
+      <div class="fig-wrap">
+        <div class="ph-block r43">
+          <img src="complete_setup.jpg" alt="Prototype mounted on xArm-7" class="zoomable"/>
+          <div class="ph-desc">End-effector mounted on xArm-7 in the experimental workspace</div>
+        </div>
+        <div class="fc">Fig 5b. Prototype mounted on the xArm-7 robotic manipulator with Intel RealSense D435i perception system.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SYSTEM MODELLING -->
+<section id="method" style="background:#fff">
+  <div class="si fade-up">
+    <span class="stag">04 &middot; System Modelling</span>
+    <h2>System Modelling &amp; Control</h2>
+    <p>
+      Due to latch-mediated energy release and nonlinear contact dynamics, directly measuring striker velocity is challenging. A <strong>pendulum-based system identification</strong> pipeline estimates velocity indirectly — by matching the pendulum's post-impact oscillation to a calibrated physics model.
+    </p>
+
+    <!-- Direct measurement attempts -->
+    <div style="background:rgba(201,168,76,0.05);border:1px solid rgba(201,168,76,0.2);border-radius:6px;padding:1.2rem 1.5rem;margin-bottom:2.5rem">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;color:var(--gold);margin-bottom:0.8rem;text-transform:uppercase">Attempts at Direct Velocity Measurement</div>
+      <div class="two-col" style="gap:1.5rem">
+        <div>
+          <strong style="color:var(--navy);font-size:0.9rem">Vision-Based (ArUco Marker)</strong>
+          <p style="font-size:0.85rem;margin-top:0.4rem;margin-bottom:0">&#x274C; Requires high-FPS camera (&gt;500 fps) — not available in the lab setup</p>
+        </div>
+        <div>
+          <strong style="color:var(--navy);font-size:0.9rem">Linear Potentiometer</strong>
+          <p style="font-size:0.85rem;margin-top:0.4rem;margin-bottom:0">&#x274C; Noise spikes corrupt the time-derivative, yielding unreliable velocity estimates during the rapid strike event</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pendulum setup + pipeline -->
+    <div class="two-col" style="margin-bottom:2.5rem">
+      <div>
+        <h3 style="font-family:'Source Serif 4',serif;font-size:1.05rem;color:var(--navy);margin-bottom:0.8rem">Pendulum Experimental Setup</h3>
+        <p style="font-size:0.9rem">A simple pendulum (ball + rigid link + rotary encoder) is struck by the end-effector. The resulting angular trajectory θ(t) is recorded and fitted to a physics model to back-compute the striker's initial velocity.</p>
+        <div class="fig-wrap" style="margin-top:1rem">
+          <div class="ph-block r43">
+            <img src="pendulum_Strike.gif" alt="Pendulum-based system identification setup" class="zoomable"/>
+            <div class="ph-desc">Striker hitting the pendulum ball — post-impact oscillation used for velocity estimation</div>
+          </div>
+          <div class="fc">Fig 6. Pendulum-based system identification experiment. The striker impacts the pendulum ball (0.75× slow-motion) and the oscillation data θ(t) is fed into the identification pipeline.</div>
+        </div>
+      </div>
+      <div>
+        <h3 style="font-family:'Source Serif 4',serif;font-size:1.05rem;color:var(--navy);margin-bottom:0.8rem">Two-Phase Identification Pipeline</h3>
+        <div class="ps">
+          <div class="psn">I</div>
+          <div class="psb">
+            <h4>Parameter Identification</h4>
+            <p>Minimize residual between experimental angle θₑ(t) and ODE-simulated output θₘ(t). Recovers effective pendulum length L<sub>eff</sub>, viscous damping c<sub>v</sub>, and Coulomb friction c<sub>c</sub>.</p>
+          </div>
+        </div>
+        <div class="ps">
+          <div class="psn">II</div>
+          <div class="psb">
+            <h4>Strike Velocity Estimation</h4>
+            <p>With parameters fixed, back-compute the initial angular velocity θ̇₀ imparted by the strike by matching post-impact oscillation. Linear velocity: v₀ = L<sub>eff</sub> · θ̇₀.</p>
+          </div>
+        </div>
+        <div class="ps">
+          <div class="psn">III</div>
+          <div class="psb">
+            <h4>Polynomial Velocity Model</h4>
+            <p>A multivariable cubic polynomial maps (d, θ) → vₛ across all experiments. Accuracy: R² = 0.91, RMSE = 0.058 m/s, Bias = 0 m/s.</p>
+          </div>
+        </div>
+        <div style="background:var(--navy);border-radius:4px;padding:0.9rem 1rem;margin-top:0.5rem;font-family:'JetBrains Mono',monospace;font-size:0.74rem;color:rgba(255,255,255,0.7);line-height:1.9">
+          <div style="color:var(--gold);font-size:0.63rem;letter-spacing:0.1em;margin-bottom:0.3rem">IDENTIFIED PARAMETERS</div>
+          <span style="color:var(--gold-light)">L<sub>eff</sub></span> = 0.2997 m &nbsp;&nbsp;
+          <span style="color:var(--gold-light)">c<sub>v</sub></span> = 0.0004 &nbsp;&nbsp;
+          <span style="color:var(--gold-light)">c<sub>c</sub></span> = 0.1222
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation plots (MOVED HERE from results) -->
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1.2rem">System Identification Results</h3>
+    <div class="two-col" style="margin-bottom:2.5rem">
+      <div class="fig-wrap">
+        
+          <img src="system_identification_plot.png" alt="Pendulum system identification results" class="zoomable"/>
+          <div class="ph-desc">Phase I — Pendulum angle: experimental vs identified model, + angle error residual</div>
+        <div class="fc">Fig 7. Phase I — System Identification: experimental pendulum response (dots) vs identified model (line). Angle error stays within ±1° throughout the full decay.</div>
+      </div>
+      <div class="fig-wrap">
+          <img src="vel_estimation_plot.png" alt="Velocity estimation results" class="zoomable"/>
+          <div class="ph-desc">Phase II — Post-strike pendulum response: experimental vs model with estimated v₀</div>
+        <div class="fc">Fig 8. Phase II — Velocity Estimation: simulated pendulum response using estimated v₀ closely matches the strike-induced oscillation; model error within ±2.5°.</div>
+      </div>
+    </div>
+
+    <!-- 3D surface -->
+    <div class="fig-wrap" style="margin-bottom:2.5rem">
+      
+      <iframe src="surface_plot.html" style="width: 100%; aspect-ratio: 16/12; border: none; display: block;" title="Interactive 3D Surface Plot for Velocity Estimation"></iframe>
+      
+      <div class="fc">Fig 9. Multivariable cubic polynomial fit: 3D interaction of cam angle (θ), offset (d), and strike velocity (vₛ). Red dots are experimental observations; the surface is the learned forward model used to plan control inputs.</div>
+    </div>
+
+    <!-- Learning-based control -->
+    <div class="divider"></div>
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1rem">Learning-Based Inverse Control</h3>
+    <div class="two-col">
+      <div>
+        <p>The inverse problem: given desired displacement <strong>p<sub>g</sub> = [x, y]</strong>, predict control parameters <strong>u = [x<sub>o</sub>, y<sub>o</sub>, z<sub>o</sub>, θ]</strong>.</p>
+        <p>A <strong>Random Forest Regressor</strong> (150 trees, max depth 8, 85/15 split) trained on 108 physical strike trials approximates this nonlinear inverse mapping. It is robust to limited data and noisy real-world measurements.</p>
+        <div style="background:var(--cream);border:1px solid var(--border);border-radius:4px;padding:1rem 1.1rem;font-size:0.85rem;color:var(--navy);line-height:1.8">
+          <strong>Dataset:</strong> 108 physical trials &nbsp;&middot;&nbsp; <strong>Split:</strong> 85/15<br/>
+          <strong>Input:</strong> desired object displacement (x, y)<br/>
+          <strong>Output:</strong> striker offsets (x<sub>o</sub>, y<sub>o</sub>, z<sub>o</sub>) + cam angle θ
+        </div>
+      </div>
+      <div class="fig-wrap">
+          <img src="strike_workspace_analysis.png" alt="Strike workspace distribution" class="zoomable"/>
+          <div class="ph-desc">Strike workspace: initial positions (blue) vs final distribution (red), 108 trials</div>
+        <div class="fc">Fig 10. Reachable strike workspace from 108 trials. Initial positions (blue) vs final displacement distribution (red). Boundary: upper −240.4 mm, lower −477.9 mm.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RESULTS -->
+<section id="results">
+  <div class="si fade-up">
+    <span class="stag">05 &middot; Results</span>
+    <h2>Results &amp; Demonstrations</h2>
+
+    <div class="metric-row">
+      <div class="metric"><div class="val">1.32<span style="font-size:1rem">mm</span></div><div class="lbl">MAE &middot; X Offset</div></div>
+      <div class="metric"><div class="val">1.94<span style="font-size:1rem">mm</span></div><div class="lbl">MAE &middot; Y Offset</div></div>
+      <div class="metric"><div class="val">2.33<span style="font-size:1rem">mm</span></div><div class="lbl">MAE &middot; Z Offset</div></div>
+      <div class="metric"><div class="val">10.3<span style="font-size:1rem">&deg;</span></div><div class="lbl">MAE &middot; Cam Angle</div></div>
+      <div class="metric"><div class="val">108</div><div class="lbl">Training Strikes</div></div>
+    </div>
+
+    <div class="demo-grid" style="margin-top:2rem">
+      <div class="fig-wrap">
+          <img src="learned_Strike.gif" alt="Learning-based strike execution demo" class="zoomable"/>
+          <div class="ph-desc">Striking demo — RF model drives object to goal within repeatability bounds</div>
+        <div class="fc">Fig 11. Learning-based strike execution. The yellow ellipse marks repeatability bounds; the centre dot is the goal position. The object reaches the target region within the mechanical repeatability limits.</div>
+      </div>
+      <div class="fig-wrap">
+          <img src="unified_repeatability_plot.png" alt="Repeatability analysis of final object positions" class="zoomable"/>
+          <div class="ph-desc">Elliptical error analysis of final object positions (N=19)</div>
+        <div class="fc">Fig 12. Repeatability analysis (N=19): filtered core ellipse H:14.9 mm &times; V:113.5 mm. Dispersion is primarily along the strike direction, reflecting sensitivity to impact energy transfer.</div>
+      </div>
+    </div>
+
+    <!-- Physical validation strip -->
+    <!-- <div class="divider"></div>
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.15rem;color:var(--navy);margin-bottom:1.2rem">Physical Validation — Pre / Mid / Post Strike</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem">
+      <div class="fig-wrap">
+        <div class="ph-block" style="aspect-ratio:4/3">
+          <div class="ph-icon-c"><i class="fas fa-camera"></i></div>
+          <div class="ph-type">Photo</div>
+          <div class="ph-fname">prestrike.jpg</div>
+        </div>
+        <div class="fc">Pre-Strike — object at initial pose, goal ellipse shown in yellow</div>
+      </div>
+      <div class="fig-wrap">
+        <div class="ph-block" style="aspect-ratio:4/3">
+          <div class="ph-icon-c"><i class="fas fa-bolt"></i></div>
+          <div class="ph-type">Photo</div>
+          <div class="ph-fname">midstrike.jpg</div>
+        </div>
+        <div class="fc">Mid-Strike — striker in contact with the object</div>
+      </div>
+      <div class="fig-wrap">
+        <div class="ph-block" style="aspect-ratio:4/3">
+          <div class="ph-icon-c"><i class="fas fa-check-circle"></i></div>
+          <div class="ph-type">Photo</div>
+          <div class="ph-fname">poststrike.jpg</div>
+        </div>
+        <div class="fc">Post-Strike — object inside goal region, ArUco pose confirmed</div>
+      </div>
+    </div>
+  </div>
+</section> -->
+
+<!-- FUTURE SCOPE -->
+<section style="background:#fff">
+  <div class="si fade-up">
+    <span class="stag">06 &middot; Future Work</span>
+    <h2>Future Scope</h2>
+    <div class="two-col">
+      <div>
+        <h3 style="font-family:'Source Serif 4',serif;font-size:1.05rem;color:var(--navy);margin-bottom:0.8rem">Environment &amp; Object Independent Adaptation</h3>
+        <p>The current Random Forest model is trained on a specific object and surface, making it brittle to changes. Integrating <strong>Rapid Motor Adaptation (RMA)</strong> will allow the system to infer object and surface properties online from a short history of early strike interactions, enabling real-time transfer to unseen environments without retraining the base policy.</p>
+      </div>
+      <div>
+        <h3 style="font-family:'Source Serif 4',serif;font-size:1.05rem;color:var(--navy);margin-bottom:0.8rem">Application-Oriented Deployment</h3>
+        <p>Deploy in practical settings including <strong>dynamic waste-sorting</strong> pipelines (non-graspable debris) and skill-based tasks such as <strong>robotic carrom playing</strong> — a precision multi-step striking domain requiring accurate directional control of object trajectories.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BIBTEX -->
+<section id="bibtex">
+  <div class="si fade-up">
+    <span class="stag">07 &middot; Citation</span>
+    <h2>BibTeX</h2>
+    <div class="bibtex-box"><span class="kw">@thesis</span>{girimanikandan2026lamsa,
+  <span class="kw">author</span>    = <span class="str">{Girimanikandan, B}</span>,
+  <span class="kw">title</span>     = <span class="str">{Learning-Based Control of a Multifunctional
+              End-Effector for Striking Manipulation under
+              Unknown Kinematic and Dynamic Parameters}</span>,
+  <span class="kw">school</span>    = <span class="str">{Indian Institute of Information Technology,
+              Design and Manufacturing, Kancheepuram}</span>,
+  <span class="kw">year</span>      = <span class="str">{2026}</span>,
+  <span class="kw">month</span>     = <span class="str">{March}</span>,
+  <span class="kw">advisor</span>   = <span class="str">{Nagamanikandan Govindhan}</span>,
+}</div>
+    <div class="divider"></div>
+    <h3 style="font-family:'Source Serif 4',serif;font-size:1.1rem;color:var(--navy);margin-bottom:1rem">References</h3>
+    <ol style="padding-left:1.4rem;font-size:0.88rem;color:var(--muted);line-height:2">
+      <li>P. Kotecha, P. Sinha, N. Govindan. "A Hierarchical Manipulation Planning Framework Combining Striking, Pushing, and Pick &amp; Place Motion Primitives." <em>IEEE CASE</em>, 2024.</li>
+      <li>R. Chandra, P. Sinha, S. Bhardwaj, N. Govindhan. "Targeted Object Striking for a 7-DoF Manipulator: A Residual Learning Approach." <em>AIR</em>, 2025.</li>
+      <li>S. N. Patek. "Latch-mediated spring actuation (LaMSA): the power of integrated biomechanical systems." <em>J Exp Biol</em>, 2023.</li>
+      <li>Y. Liang, K. Ellis, J. Henriques. "Rapid Motor Adaptation for Robotic Manipulator Arms."</li>
+    </ol>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>This website is inspired by the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page template (CC BY-SA 4.0).</p>
+  <p style="margin-top:0.4rem">Girimanikandan B &middot; IIITDM Kancheepuram &middot; Advisor: Dr. Nagamanikandan Govindhan &middot; March 2026</p>
+</footer>
+
+<script>
+  const obs = new IntersectionObserver(
+    entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }),
+    { threshold: 0.08 }
+  );
+  document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+</script>
+</body>
+</html>
